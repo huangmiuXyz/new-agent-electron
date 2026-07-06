@@ -47,6 +47,8 @@ export const createChatMessageSyncController = ({
   const pendingSyncMessageIds: string[] = []
   const pendingSyncMessages = new Map<string, BaseMessage>()
   const persistedMessageIds = new Set<string>()
+  const pendingPartUpdates = new Set<string>() // "messageId:partIdx" 队列，schedule 时记录，persist 时消费
+  const pendingStreamPartCounts = new Map<string, number>() // 追踪每个 message 的 part 数量，用于检测 part 追加
 
   const createStoreMessageSnapshot = (
     message?: BaseMessage,
@@ -207,36 +209,43 @@ export const createChatMessageSyncController = ({
       updateMessages(chatId, nextMessages, { persist: false })
       syncTimeLog(_t1b, 'flushStreamingUpdate-UI更新', `msgs=${messagesToSync.length}`)
 
-      // Persist changed messages at part level instead of full rewrite.
-      // upsertPart depends on the message row existing, so upsertMessageSnapshot must complete first.
+      // upsertPart 依赖 message 行已存在，所以 upsertMessageSnapshot 必须先完成
       if (shouldPersist) {
         const _t1 = createTimeLog('flushStreamingUpdate-持久化')
-        const details: string[] = []
+        // 先确保所有 message 行存在
         for (const message of messagesToSync) {
           try {
             if (!persistedMessageIds.has(message.id)) {
               persistedMessageIds.add(message.id)
               await chatStreamPersistence.upsertMessageSnapshot(chatId, message)
             }
-            // 流式生成中 parts 是顺序追加的，只有最后一个 part 在变化，不会回头更新之前的 part。
-            // 因此只需 upsert 最后一个 part，避免每次 flush 重写所有 part 的开销。
-            if (message.parts && message.parts.length > 0) {
-              const lastIdx = message.parts.length - 1
-              await chatStreamPersistence.upsertPart(message.id, lastIdx, message.parts[lastIdx])
-            }
-            details.push(`${message.id.slice(0, 8)} parts=${message.parts.length}`)
           } catch (err) {
             console.error('[messageSync] Failed to persist message', err)
           }
         }
-        syncTimeLog(_t1, 'flushStreamingUpdate-持久化', details.join(' | '))
+        // 消费 pendingPartUpdates 队列，写入所有记录的 part 更新
+        for (const key of pendingPartUpdates) {
+          try {
+            const sepIdx = key.lastIndexOf(':')
+            const msgId = key.slice(0, sepIdx)
+            const partIdx = parseInt(key.slice(sepIdx + 1))
+            const message = pendingSyncMessages.get(msgId)
+            if (message?.parts?.[partIdx]) {
+              await chatStreamPersistence.upsertPart(msgId, partIdx, message.parts[partIdx])
+            }
+          } catch (err) {
+            console.error('[messageSync] Failed to persist part', err)
+          }
+        }
+        syncTimeLog(_t1, 'flushStreamingUpdate-持久化', `updates=${pendingPartUpdates.size}`)
         // force=true 时不重置 lastPersistAt，不影响定时持久化的节奏
         if (!options.force) {
           lastPersistAt = now
         }
-        // 只有真正写入数据库后，才清空待持久化队列
+        // 只有真正写入数据库后，才清空队列
         pendingSyncMessageIds.length = 0
         pendingSyncMessages.clear()
+        pendingPartUpdates.clear()
       }
     }
 
@@ -271,6 +280,7 @@ export const createChatMessageSyncController = ({
     const updatedMessages = await flushStreamingUpdate({ force: true })
 
     persistedMessageIds.delete(message.id)
+    pendingStreamPartCounts.delete(message.id)
     // 轻量 finalize——只传 metadata，parts 已在流式过程中写入 DB
     chatStreamPersistence.finalizeMessage(chatId, message.id, message.metadata || ({} as MetaData)).catch((err) => {
       console.error('[messageSync] Failed to finalize message', err)
@@ -302,6 +312,18 @@ export const createChatMessageSyncController = ({
       pendingSyncMessageIds.push(message.id)
     }
     pendingSyncMessages.set(message.id, message)
+
+    // 记录本次更新的 part，延迟到 2.5s persist 时写入
+    if (message.parts && message.parts.length > 0) {
+      const prevCount = pendingStreamPartCounts.get(message.id) ?? 0
+      const currentCount = message.parts.length
+      pendingPartUpdates.add(`${message.id}:${currentCount - 1}`)
+      // part 追加 → 前一个 last part 被冻结，记录其最终版本
+      if (currentCount > prevCount && prevCount > 0) {
+        pendingPartUpdates.add(`${message.id}:${prevCount - 1}`)
+      }
+      pendingStreamPartCounts.set(message.id, currentCount)
+    }
 
     pendingStreamParts = message.parts as
       | (TextUIPart | ToolUIPart | FileUIPart)[]
