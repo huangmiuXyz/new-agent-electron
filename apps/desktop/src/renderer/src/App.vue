@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { defineAsyncComponent, h } from 'vue'
-import ChatPage from './pages/chat/index.vue'
 import AppFooter from './components/AppFooter.vue'
 import PageFindBar from './components/PageFindBar.vue'
 import ResizeBox from './components/ResizeBox.vue'
@@ -19,7 +18,7 @@ const PageLoading = {
   ])
 }
 
-// 非首屏页面异步导入，避免首屏加载所有页面组件
+// 所有页面异步导入，避免首屏加载所有页面组件及其依赖链（AI SDK、chatService 等）
 const NotesPage = defineAsyncComponent({
   loader: () => import('./pages/notes/index.vue'),
   loadingComponent: PageLoading,
@@ -37,6 +36,12 @@ const SettingsPage = defineAsyncComponent({
 })
 const MyAppsPage = defineAsyncComponent({
   loader: () => import('./pages/my-apps/index.vue'),
+  loadingComponent: PageLoading,
+  delay: 0
+})
+// ChatPage 异步加载（其依赖链含 AI SDK + chatService + 内置工具等大量模块）
+const ChatPage = defineAsyncComponent({
+  loader: () => import('./pages/chat/index.vue'),
   loadingComponent: PageLoading,
   delay: 0
 })

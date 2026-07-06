@@ -1,7 +1,5 @@
-import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
+// @ts-nocheck
+// MCP SDK 体积较大，采用动态 import 延迟到首次调用时加载，不阻塞 preload 初始化
 type ClientConfig = Record<
   string,
   {
@@ -15,7 +13,7 @@ type ClientConfig = Record<
     [key: string]: any
   }
 >
-type Tools = Awaited<ReturnType<MCPClient['tools']>>
+type Tools = Record<string, { description?: string; parameters?: unknown; execute: (input: unknown, options?: Record<string, unknown>) => Promise<unknown> }>
 
 interface ResourceInfo {
   uri: string
@@ -49,7 +47,7 @@ interface aiServiceResult {
 }
 
 export const aiServices = (): aiServiceResult => {
-  let clientMap: Record<string, MCPClient> = {}
+  let clientMap: Record<string, any> = {}
   let lastConfig: ClientConfig = {}
   let toolsCache: Tools | undefined
   const NEEDED_FIELDS = ['command', 'args', 'url', 'transport', 'headers'] as const
@@ -96,18 +94,23 @@ export const aiServices = (): aiServiceResult => {
   const isNecessaryConfigChanged = (a: any, b: any) =>
     JSON.stringify(extractNeededConfig(a)) !== JSON.stringify(extractNeededConfig(b))
 
-  const createTransport = (cfg: ClientConfig[keyof ClientConfig]) => {
+  const createTransport = async (cfg: ClientConfig[keyof ClientConfig]) => {
     if (cfg.url) {
-      if (cfg.transport === 'http')
+      if (cfg.transport === 'http') {
+        const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js')
         return new StreamableHTTPClientTransport(new URL(cfg.url), {
           requestInit: cfg.headers ? { headers: cfg.headers } : undefined
         })
-      if (cfg.transport === 'sse')
+      }
+      if (cfg.transport === 'sse') {
+        const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js')
         return new SSEClientTransport(new URL(cfg.url), {
           requestInit: cfg.headers ? { headers: cfg.headers } : undefined
         })
+      }
     }
     if (cfg.command) {
+      const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js')
       return new StdioClientTransport({
         command: cfg.command,
         args: cfg.args || []
@@ -129,8 +132,9 @@ export const aiServices = (): aiServiceResult => {
         if (clientMap[key]) {
           await clientMap[key].close()
         }
+        const { createMCPClient } = await import('@ai-sdk/mcp')
         clientMap[key] = await createMCPClient({
-          transport: createTransport(serverCfg) as any
+          transport: (await createTransport(serverCfg)) as any
         })
       }
     }

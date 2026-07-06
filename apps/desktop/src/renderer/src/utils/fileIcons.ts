@@ -3,29 +3,31 @@ import { h, VNode } from 'vue'
 // 详见: https://github.com/material-extensions/vscode-material-icon-theme
 import manifest from 'material-icon-theme/dist/material-icons.json'
 
-// 用 import.meta.glob 在构建期收集所有 SVG，得到 图标名 → URL 的映射
-// 相对路径从当前文件 src/renderer/src/utils/ 出发，回退 4 层到 apps/desktop/
+// 用 import.meta.glob 惰性收集所有 SVG（eager: false），避免冷启动时
+// Vite 一次性解析 1250+ 个 SVG 文件。模块加载后立即开始预填充缓存。
 const svgModules = import.meta.glob(
   '../../../../node_modules/material-icon-theme/icons/*.svg',
   {
     query: '?url',
     import: 'default',
-    eager: true
+    eager: false
   }
-) as Record<string, string>
+) as Record<string, () => Promise<string>>
 
-// 图标名 → URL
 const iconUrlCache = new Map<string, string>()
-for (const [path, url] of Object.entries(svgModules)) {
+
+// 非阻塞预填充：模块加载后立即触发所有 loader，不阻塞同步 API
+for (const [path, loader] of Object.entries(svgModules)) {
   const match = path.match(/\/icons\/(.+)\.svg$/)
-  if (match) iconUrlCache.set(match[1], url)
+  if (match) {
+    loader().then((url) => {
+      iconUrlCache.set(match[1], url as string)
+    })
+  }
 }
 
-if (import.meta.env.DEV && iconUrlCache.size === 0) {
-  console.warn(
-    '[fileIcons] import.meta.glob 未匹配到 SVG，glob keys:',
-    Object.keys(svgModules).length
-  )
+if (import.meta.env.DEV && Object.keys(svgModules).length === 0) {
+  console.warn('[fileIcons] import.meta.glob 未匹配到 SVG')
 }
 
 // manifest 的字段结构

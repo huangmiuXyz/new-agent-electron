@@ -48,18 +48,12 @@ export default defineConfig(() => {
           'pinia',
           '@vueuse/core',
           'ai',
-          '@ai-sdk/vue',
-          '@ai-sdk/openai',
-          '@ai-sdk/anthropic',
-          '@ai-sdk/google',
           'nanoid',
           'dayjs',
           'es-toolkit',
           'zod',
           'localforage',
-          'pinia-plugin-persistedstate-async',
-          '@modelcontextprotocol/sdk',
-          '@ai-sdk/mcp'
+          'pinia-plugin-persistedstate-async'
         ],
         rolldownOptions: {
           output: {
