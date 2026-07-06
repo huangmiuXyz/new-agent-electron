@@ -21,7 +21,7 @@ let isProgrammaticScroll = false
 const copyPreviewZIndex = acquireZIndex()
 const { showContextMenu } = useContextMenu<BaseMessage>()
 const { currentChat } = storeToRefs(useChatsStores())
-const { deleteMessage, updateMessage, loadMoreMessagesBefore } = useChatsStores()
+const { deleteMessage, updateMessages, loadMoreMessagesBefore } = useChatsStores()
 const isLoadingMore = ref(false)
 const mobileEditModal = useModal()
 const { Delete, Refresh, Continue, Copy, Edit, Branch, Language, Image, Stop, VolumeMedium, Robot, ChevronDown } = useIcon([
@@ -478,7 +478,11 @@ const saveMobileEdit = () => {
     return true
   })
 
-  updateMessage(currentChat.value.id, mobileEditingMessageId.value, filteredContent)
+  updateMessages(currentChat.value.id, (messages) =>
+    messages.map((m) =>
+      m.id === mobileEditingMessageId.value ? { ...m, parts: filteredContent } : m
+    )
+  )
 }
 
 const saveMobileEditAndClose = () => {
