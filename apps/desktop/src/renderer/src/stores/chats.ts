@@ -562,16 +562,6 @@ export const useChatsStores = defineStore(
       })
     }
 
-    const updateMessage = async (cid: string, mid: string, newParts: any[]) => {
-      const window = messageWindows.value[cid]
-      if (!window) return
-      const nextMessages = window.messages.map((message) =>
-        message.id === mid ? { ...message, parts: newParts } : message
-      )
-      replaceWindowMessages(cid, nextMessages)
-      await chatRepository.replaceMessageParts(mid, newParts)
-    }
-
     const updateMessageMetadata = async (cid: string, mid: string, newMetadata: MetaData) => {
       const window = messageWindows.value[cid]
       if (!window) return
@@ -885,7 +875,6 @@ export const useChatsStores = defineStore(
       addMessageToChat,
       getChatById,
       deleteMessage,
-      updateMessage,
       updateMessageMetadata,
       updateMessageAudioChunks,
       isTitleGenerating,

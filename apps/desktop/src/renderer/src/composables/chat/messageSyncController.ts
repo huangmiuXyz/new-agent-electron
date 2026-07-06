@@ -218,10 +218,11 @@ export const createChatMessageSyncController = ({
               persistedMessageIds.add(message.id)
               await chatStreamPersistence.upsertMessageSnapshot(chatId, message)
             }
-            if (message.parts) {
-              for (let i = 0; i < message.parts.length; i++) {
-                await chatStreamPersistence.upsertPart(message.id, i, message.parts[i])
-              }
+            // 流式生成中 parts 是顺序追加的，只有最后一个 part 在变化，不会回头更新之前的 part。
+            // 因此只需 upsert 最后一个 part，避免每次 flush 重写所有 part 的开销。
+            if (message.parts && message.parts.length > 0) {
+              const lastIdx = message.parts.length - 1
+              await chatStreamPersistence.upsertPart(message.id, lastIdx, message.parts[lastIdx])
             }
             details.push(`${message.id.slice(0, 8)} parts=${message.parts.length}`)
           } catch (err) {
