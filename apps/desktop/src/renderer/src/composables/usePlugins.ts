@@ -312,35 +312,67 @@ export function usePlugins() {
       return
     }
 
-    await Promise.allSettled(
-      Object.entries(devPlugins).map(async ([pluginName, localPath]) => {
-        try {
-          if (!pluginLoader.isPluginLoaded(pluginName)) {
+    // 使用 requestIdleCallback 逐个加载插件，避免阻塞首屏渲染
+    const loadQueue: (() => Promise<void>)[] = []
+
+    for (const [pluginName, localPath] of Object.entries(devPlugins)) {
+      if (!pluginLoader.isPluginLoaded(pluginName)) {
+        loadQueue.push(async () => {
+          try {
             await pluginLoader.loadPluginDev(localPath)
+          } catch (err) {
+            console.error(`Failed to restore dev plugin "${pluginName}":`, err)
+            settingsStore.removeDevPluginPath(pluginName)
           }
-        } catch (err) {
-          console.error(`Failed to restore dev plugin "${pluginName}":`, err)
-          settingsStore.removeDevPluginPath(pluginName)
-        }
-      })
-    )
+        })
+      }
+    }
 
-    await Promise.allSettled(
-      savedPlugins.map(async (pluginConfig) => {
-        const pluginName = pluginConfig.name
-        try {
-          if (!pluginLoader.isPluginLoaded(pluginName)) {
+    for (const pluginConfig of savedPlugins) {
+      const pluginName = pluginConfig.name
+      if (!pluginLoader.isPluginLoaded(pluginName)) {
+        loadQueue.push(async () => {
+          try {
             await pluginLoader.loadPlugin(pluginName)
+          } catch (err) {
+            console.error(`Failed to restore plugin "${pluginName}":`, err)
+            settingsStore.removeLoadedPlugin(pluginName)
           }
-        } catch (err) {
-          console.error(`Failed to restore plugin "${pluginName}":`, err)
-          settingsStore.removeLoadedPlugin(pluginName)
-        }
-      })
-    )
+        })
+      }
+    }
 
-    settingsStore.syncBuiltinProviders()
-    await refreshPlugins()
+    if (loadQueue.length === 0) {
+      settingsStore.syncBuiltinProviders()
+      await refreshPlugins()
+      return
+    }
+
+    return new Promise<void>((resolve) => {
+      let index = 0
+      const processNext = (): void => {
+        if (index >= loadQueue.length) {
+          settingsStore.syncBuiltinProviders()
+          void refreshPlugins()
+          resolve()
+          return
+        }
+        const task = loadQueue[index++]
+        task().then(() => {
+          if (typeof requestIdleCallback !== 'undefined') {
+            requestIdleCallback(processNext, { timeout: 3000 })
+          } else {
+            setTimeout(processNext, 50)
+          }
+        })
+      }
+
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(processNext, { timeout: 3000 })
+      } else {
+        setTimeout(processNext, 50)
+      }
+    })
   }
 
   const executeCommand = async (commandName: string): Promise<void> => {
