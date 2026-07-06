@@ -3,6 +3,8 @@ import { FileUIPart, TextUIPart, ToolUIPart } from 'ai'
 import type { InputAudioItem } from '@renderer/composables/useInputAudioRecorder'
 import AudioInputPreview from '../Input/AudioInputPreview.vue'
 import '@incremark/theme/styles.css'
+import VirtualParagraphText from '@renderer/components/VirtualParagraphText.vue'
+
 const props = defineProps<{
   message: BaseMessage
   markdown?: boolean
@@ -12,6 +14,23 @@ const props = defineProps<{
 const { currentChat } = storeToRefs(useChatsStores())
 const { currentSelectedModel, display } = storeToRefs(useSettingsStore())
 const { updateMessages } = useChatsStores()
+
+const userTextExpanded = ref<Record<string, boolean>>({})
+const userTextOverflow = ref<Record<string, boolean>>({})
+
+function checkUserTextOverflow(blockKey: string) {
+  nextTick(() => {
+    const wrapper = document.querySelector(`[data-user-text="${blockKey}"]`)
+    if (!wrapper) return
+    const virtualText = wrapper.querySelector('.virtual-paragraph-text')
+    if (!virtualText) return
+    userTextOverflow.value[blockKey] = virtualText.scrollHeight > virtualText.clientHeight + 1
+  })
+}
+
+function toggleUserText(blockKey: string) {
+  userTextExpanded.value[blockKey] = !userTextExpanded.value[blockKey]
+}
 
 const messageEdit = inject('messageEdit') as {
   editingMessageId: Ref<string | null>
@@ -137,6 +156,16 @@ const audioPartToPreviewItem = (block: FileUIPart, idx: number): InputAudioItem 
 
 const displayParts = computed(() => props.parts ?? props.message.parts)
 
+watch(displayParts, () => {
+  nextTick(() => {
+    displayParts.value.forEach((block, idx) => {
+      if (block.type === 'text' && props.message?.role === 'user') {
+        checkUserTextOverflow(getBlockKey(block, idx))
+      }
+    })
+  })
+}, { deep: true, immediate: true })
+
 const lastTextBlockIndex = computed(() => {
   for (let index = displayParts.value.length - 1; index >= 0; index -= 1) {
     if (displayParts.value[index].type === 'text') return index
@@ -176,6 +205,29 @@ const lastReasoningBlockIndex = computed(() => {
               :streaming="streaming && idx === lastTextBlockIndex"
               :disable-translation="message.role === 'assistant'"
             />
+            <template v-else-if="message.role === 'user'">
+              <div
+                class="user-text-wrapper"
+                :data-user-text="getBlockKey(block, idx)"
+                style="--text-primary: #fff;"
+              >
+                <VirtualParagraphText
+                  :text="block.text || ''"
+                  :max-height="userTextExpanded[getBlockKey(block, idx)] ? 'none' : 400"
+                  class="user-text-virtual"
+                  split-mode="blank-line"
+                  :font-size="display.fontSize"
+                />
+                <div
+                  v-if="userTextOverflow[getBlockKey(block, idx)] || userTextExpanded[getBlockKey(block, idx)]"
+                  class="user-text-actions"
+                >
+                  <button class="expand-btn" @click="toggleUserText(getBlockKey(block, idx))">
+                    {{ userTextExpanded[getBlockKey(block, idx)] ? '收起' : '展开全部' }}
+                  </button>
+                </div>
+              </div>
+            </template>
             <template v-else>
               <div class="text-content">
                 {{ block.text }}
@@ -357,5 +409,26 @@ const lastReasoningBlockIndex = computed(() => {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
+}
+
+.user-text-actions {
+  text-align: center;
+  padding-top: 2px;
+}
+
+.expand-btn {
+  display: inline;
+  padding: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+
+.expand-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
 }
 </style>

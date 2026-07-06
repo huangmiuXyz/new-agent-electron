@@ -5,6 +5,7 @@ import { estimateParagraphHeight, splitTextIntoParagraphs, type ParagraphBlock, 
 interface VirtualParagraphTextProps {
   text: string
   height?: string | number
+  maxHeight?: string | number
   splitMode?: ParagraphSplitMode
   preserveEmpty?: boolean
   trimParagraphs?: boolean
@@ -48,8 +49,17 @@ const paragraphs = computed<ParagraphBlock[]>(() =>
 )
 
 const viewportHeight = computed(() => {
+  // When maxHeight is set, use auto so content determines natural height
+  // and max-height constrains it. This avoids relying on parent having a defined height.
+  if (props.maxHeight) return 'auto'
   if (typeof props.height === 'number') return `${props.height}px`
   return props.height
+})
+
+const viewportMaxHeight = computed(() => {
+  if (!props.maxHeight) return undefined
+  if (typeof props.maxHeight === 'number') return `${props.maxHeight}px`
+  return props.maxHeight
 })
 
 const getParagraphHeight = (index: number) => {
@@ -142,6 +152,7 @@ defineExpose({
       containerProps.style,
       {
         height: viewportHeight,
+        maxHeight: viewportMaxHeight,
         '--virtual-paragraph-font-size': `${fontSize}px`,
         '--virtual-paragraph-line-height': `${lineHeight}px`,
         '--virtual-paragraph-padding-block': `${paragraphPaddingBlock / 2}px`
