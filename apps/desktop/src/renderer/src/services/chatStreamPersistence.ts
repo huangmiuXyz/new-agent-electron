@@ -23,7 +23,12 @@ const forIpc = <T>(obj: T): T => {
 export const chatStreamPersistence = {
   async upsertMessageSnapshot(chatId: string, message: BaseMessage, seqHint?: number): Promise<void> {
     const _t1 = createTimeLog('持久化-upsertMessageSnapshot')
-    await window.api.chatDb.message.upsert(chatId, forIpc(message), seqHint)
+    // 只传 id/role/metadata，跳过 parts（main process 的 upsertMessage 用不到 parts）
+    await window.api.chatDb.message.upsert(chatId, {
+      id: message.id,
+      role: message.role,
+      metadata: forIpc(message.metadata ?? {})
+    } as BaseMessage, seqHint)
     syncTimeLog(_t1, '持久化-upsertMessageSnapshot', `parts=${message.parts.length} role=${message.role}`)
   },
 
