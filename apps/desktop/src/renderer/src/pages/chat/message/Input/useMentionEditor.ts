@@ -2,11 +2,14 @@ import {
   computed,
   nextTick,
   ref,
+  render,
   watch,
   type ComputedRef,
   type Ref,
   type WritableComputedRef
 } from 'vue'
+import { getFileIcon } from '@renderer/utils/fileIcons'
+import { useIcon } from '@renderer/composables/useIcon'
 
 type MentionPanelRef = {
   syncMentionState?: (message: string, cursor: number) => void
@@ -101,6 +104,13 @@ const parseMentionTokens = (text: string) => {
   return tokens
 }
 
+// 各类型图标与 AtPanel 保持一致：文件用 fileIcons，其余用 useIcon (Fluent UI)
+const CHIP_ICONS = {
+  skills: () => useIcon('Wrench20Regular'),
+  note: () => useIcon('NoteAdd24Regular'),
+  agent: () => useIcon('Robot')
+} as const
+
 const createMentionChipNode = (chip: MentionChip) => {
   const chipNode = document.createElement('span')
   chipNode.className = `mention-chip mention-chip--${chip.kind}`
@@ -109,6 +119,17 @@ const createMentionChipNode = (chip: MentionChip) => {
   chipNode.dataset.raw = chip.raw
   chipNode.dataset.kind = chip.kind
   chipNode.title = `${chip.kindLabel}: ${chip.label}`
+
+  // 图标：文件按扩展名匹配 material-icon-theme，其他用 Fluent UI 图标
+  const iconBox = document.createElement('span')
+  iconBox.className = 'mention-chip__icon'
+  if (chip.kind === 'file') {
+    const path = chip.raw.replace(/^file:/i, '')
+    render(getFileIcon(path).vnode, iconBox)
+  } else {
+    const icon = CHIP_ICONS[chip.kind]()
+    render(icon, iconBox)
+  }
 
   const kindNode = document.createElement('span')
   kindNode.className = 'mention-chip__kind'
@@ -119,7 +140,7 @@ const createMentionChipNode = (chip: MentionChip) => {
   const closeNode = document.createElement('span')
   closeNode.className = 'mention-chip__close'
   closeNode.setAttribute('aria-hidden', 'true')
-  chipNode.append(kindNode, labelNode, closeNode)
+  chipNode.append(iconBox, kindNode, labelNode, closeNode)
   return chipNode
 }
 

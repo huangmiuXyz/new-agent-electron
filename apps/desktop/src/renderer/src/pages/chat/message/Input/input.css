@@ -337,6 +337,14 @@
   background: rgba(var(--color-primary-rgb, 0, 122, 255), 0.14);
 }
 
+:deep(.mention-chip__icon) {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  width: 16px;
+  height: 16px;
+}
+
 :deep(.mention-chip__kind) {
   flex-shrink: 0;
   color: var(--text-tertiary);
